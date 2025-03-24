@@ -10,6 +10,9 @@ class Agent:
         :param layer_sizes: A list containing neuron numbers in each layers. For example [3, 10, 2] means that there are
         3 neurons in the input layer, 10 neurons in the hidden layer, and 2 neurons in the output layer.
         """
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print("Device: ", self.device)
+
         self.layer_sizes = layer_sizes
         self.weights = []
         self.biases = []
@@ -23,10 +26,10 @@ class Agent:
         set up the NN
         """
         for i in range(len(self.layer_sizes) - 1):
-            self.weights.append(torch.randn(self.layer_sizes[i], self.layer_sizes[i+1], requires_grad=True))
-            self.biases.append(torch.randn(self.layer_sizes[i+1], requires_grad=True))
-            self.copy_weights.append(torch.randn(self.layer_sizes[i], self.layer_sizes[i+1]))
-            self.copy_biases.append(torch.randn(self.layer_sizes[i+1]))
+            self.weights.append(torch.randn(self.layer_sizes[i], self.layer_sizes[i+1], requires_grad=True, device=self.device))
+            self.biases.append(torch.randn(self.layer_sizes[i+1], requires_grad=True, device=self.device))
+            self.copy_weights.append(torch.randn(self.layer_sizes[i], self.layer_sizes[i+1], device=self.device))
+            self.copy_biases.append(torch.randn(self.layer_sizes[i+1], device=self.device))
         # print(type(self.copy_weights[0]))
         # print(type(self.copy_biases[0]))
         # print("Data type: ", type(self.weights[0]), "Size is: ", self.weights[0].size())
@@ -50,6 +53,7 @@ class Agent:
         """
         predict the output in the NN
         """
+        x = x.to(self.device)
         if (not td_target):
             for i in range(len(self.layer_sizes) - 1):
                 x = x@self.weights[i] + self.biases[i]
