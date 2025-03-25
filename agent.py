@@ -55,14 +55,14 @@ class Agent:
         """
         x = x.to(self.device)
         if (not td_target):
-            for i in range(len(self.layer_sizes) - 1):
+            for i in range(len(self.layer_sizes) - 1): # layer size is 3, loop in [0, 1]
                 x = x@self.weights[i] + self.biases[i]
-                if i != len(self.layer_sizes) - 2:
+                if i < len(self.layer_sizes) - 2: # 
                     x = F.relu(x)
         else:
             for i in range(len(self.layer_sizes) - 1):
                 x = x@self.copy_weights[i] + self.copy_biases[i]
-                if i != len(self.layer_sizes) - 2:
+                if i < len(self.layer_sizes) - 2:
                     x = F.relu(x)
         return x
 

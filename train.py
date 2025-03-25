@@ -15,6 +15,7 @@ class Train:
         self.env = env
         self.agent = agent
         self.agent.setUp()
+        self.device = self.agent.device
         self.no_of_episodes = 500
         self.max_steps_per_episode = 50
         self.epsilon = 0.99
@@ -44,12 +45,12 @@ class Train:
             episode_loss = 0
             episode_reward = 0
             num_updates = 0
-            while (not self.stop) and count < self.max_steps_per_episode:
-                if self.steps % 10 == 0:
+            while (not self.stop):
+                if self.steps % 100 == 0:
                     self.agent.copy() # copy the weights
                 if self.epsilon > self.epsilon_min:
                     self.epsilon *= self.epsilon_decay
-                state = self.one_hot_encoder(state) # one hot encode the state
+                state = self.env.one_hot_encoder(state) # one hot encode the state
                 random_number = torch.rand(1)
                 if random_number > self.epsilon:
                     action = self.agent.forward(state) # forward pass
@@ -59,33 +60,33 @@ class Train:
                 # print(action)
                 next_state, reward, terminated, truncated, info = self.env.step(action) # step the environment
                 episode_reward += reward  # Track total reward
-                if terminated or truncated:
+                if terminated: # if the episode is terminated
                     self.replay_buffer.append((state, action, reward, -1)) # append the replay buffer
                 else:
                     self.replay_buffer.append((state, action, reward, next_state)) # append the replay buffer
                 if len(self.replay_buffer) != self.replay_buffer.maxlen:
-                    if terminated or truncated:
-                        td_target = reward
+                    if terminated:
+                        td_target = torch.tensor(reward, dtype=torch.float32).to(self.device) # if the episode is terminated, td_target is the reward, otherwise it is the max of the next state q_value, but it is on cp, so it is the reward inf
                     else:
-                        td_target = reward + self.gamma * torch.max(self.agent.forward(self.one_hot_encoder(next_state), td_target=True)) # forward pass
-                    q_value = self.agent.forward(state) # forward pass
-                    target_q_values = q_value.clone().detach() # detach the q_value
-                    target_q_values[action] = td_target # update the q_value
+                        td_target = reward + self.gamma * torch.max(self.agent.forward(self.env.one_hot_encoder(next_state), td_target=True)) # forward pass
+                    q_value = self.agent.forward(state)[action] # forward pass there are 6 q-values as output
+                    # print("td_target: ", td_target, "q_value: ", q_value)
+                    # target_q_values = q_value.clone().detach() # detach the q_value
+                    # target_q_values[action] = td_target # update the q_value
                     # print("action: ", action, "reward: ", reward)
                     # print("td_target: ", td_target, "q_value: ", q_value)
-                    loss = F.mse_loss(q_value[action], target_q_values[action]) # calculate the loss
+                    loss = F.mse_loss(q_value, td_target) # calculate the loss
                     self.total_loss += loss
+
                 else:
                     minibatch = random.sample(self.replay_buffer, self.batch_size) # sample the replay buffer
                     for state, action, reward, next_state in minibatch:
                         if next_state == -1:
-                            td_target = reward
+                            td_target = torch.tensor(reward, dtype=torch.float32).to(self.device) # if the episode is terminated, td_target is the reward, otherwise it is the max of the next state q_value, but it is on cp
                         else:
-                            td_target = reward + self.gamma * torch.max(self.agent.forward(self.one_hot_encoder(next_state), td_target=True)) # forward pass
-                        q_value = self.agent.forward(state) # forward pass
-                        target_q_values = q_value.clone().detach() # detach the q_value
-                        target_q_values[action] = td_target # update the q_value
-                        loss = F.mse_loss(q_value[action], target_q_values[action]) # calculate the loss
+                            td_target = reward + self.gamma * torch.max(self.agent.forward(self.env.one_hot_encoder(next_state), td_target=True)) # forward pass
+                        q_value = self.agent.forward(state)[action] # forward pass
+                        loss = F.mse_loss(q_value, td_target) # calculate the loss
                         self.total_loss += loss
                     self.total_loss /= self.batch_size # average the loss
 
@@ -114,13 +115,13 @@ class Train:
             self.episode_lengths.append(count)
             self.epsilons.append(self.epsilon)
 
-    def one_hot_encoder(self, state):
-        """
-        return a one hot vector of the state
-        """
-        one_hot_vector = torch.zeros(self.env.observation_space.n)
-        one_hot_vector[state] = 1
-        return one_hot_vector
+    # def one_hot_encoder(self, state):
+    #     """
+    #     return a one hot vector of the state
+    #     """
+    #     one_hot_vector = torch.zeros(self.env.observation_space.n)
+    #     one_hot_vector[state] = 1
+    #     return one_hot_vector
 
     def save_metrics(self, episode):
         """Save performance metrics and generate plots"""
@@ -187,7 +188,7 @@ class Train:
 
 
 
-env = Env('Taxi-v3')
+env = Env('Taxi-v3', render_mode=None)
 agent = Agent([env.observation_space.n, 64, 64, env.action_space.n])
 train = Train(env, agent)
 train.train()
