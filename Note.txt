@@ -1,0 +1,1 @@
+1. An interesting phenomenon was observed during the training process. The model doesn't do any pickup and dropoff operation in order to prevent high negative rewards. Therefore, in the whole training process, the model seems like to learn a passive strategy about moving until the maximum steps of a episode.

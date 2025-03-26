@@ -18,16 +18,16 @@ class Train:
         self.device = self.agent.device
         self.no_of_episodes = 500
         self.max_steps_per_episode = 50
-        self.epsilon = 0.99
+        self.epsilon = 1.0
         self.epsilon_decay = 0.999
-        self.epsilon_min = 0.01
+        self.epsilon_min = 0.1
         self.stop = False
         self.steps = 0
         self.total_loss = 0
 
-        self.replay_buffer = deque(maxlen=2000)
-        self.batch_size = 32
-        self.gamma = 0.9
+        self.replay_buffer = deque(maxlen=3000)
+        self.batch_size = 64
+        self.gamma = 0.99
 
         self.episode_rewards = []
         self.episode_lengths = []
@@ -46,7 +46,7 @@ class Train:
             episode_reward = 0
             num_updates = 0
             while (not self.stop):
-                if self.steps % 100 == 0:
+                if self.steps % 500 == 0:
                     self.agent.copy() # copy the weights
                 if self.epsilon > self.epsilon_min:
                     self.epsilon *= self.epsilon_decay
@@ -61,10 +61,10 @@ class Train:
                 next_state, reward, terminated, truncated, info = self.env.step(action) # step the environment
                 episode_reward += reward  # Track total reward
                 if terminated: # if the episode is terminated
-                    self.replay_buffer.append((state, action, reward, -1)) # append the replay buffer
+                    self.replay_buffer.append((state, action, reward, None)) # append the replay buffer
                 else:
                     self.replay_buffer.append((state, action, reward, next_state)) # append the replay buffer
-                if len(self.replay_buffer) != self.replay_buffer.maxlen:
+                if len(self.replay_buffer) < self.batch_size:
                     if terminated:
                         td_target = torch.tensor(reward, dtype=torch.float32).to(self.device) # if the episode is terminated, td_target is the reward, otherwise it is the max of the next state q_value, but it is on cp, so it is the reward inf
                     else:
@@ -81,7 +81,7 @@ class Train:
                 else:
                     minibatch = random.sample(self.replay_buffer, self.batch_size) # sample the replay buffer
                     for state, action, reward, next_state in minibatch:
-                        if next_state == -1:
+                        if next_state == None:
                             td_target = torch.tensor(reward, dtype=torch.float32).to(self.device) # if the episode is terminated, td_target is the reward, otherwise it is the max of the next state q_value, but it is on cp
                         else:
                             td_target = reward + self.gamma * torch.max(self.agent.forward(self.env.one_hot_encoder(next_state), td_target=True)) # forward pass
@@ -92,6 +92,7 @@ class Train:
 
                 self.agent.optimizer.zero_grad() # zero the gradient
                 self.total_loss.backward() # backward pass
+                torch.nn.utils.clip_grad_norm_(self.agent.parameters(), max_norm=1) # clip the gradient
                 self.agent.optimizer.step() # update the weights
 
                 episode_loss += self.total_loss.item()  # Track loss

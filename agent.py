@@ -37,7 +37,7 @@ class Agent:
         for i in range(len(self.weights)):
             self.parameters.append(self.weights[i])
             self.parameters.append(self.biases[i])
-        self.optimizer = torch.optim.Adam(self.parameters, lr = 0.001)
+        self.optimizer = torch.optim.Adam(self.parameters, lr = 0.0001)
 
     def copy(self):
         """
