@@ -17,7 +17,7 @@ class Train:
         self.agent.setUp()
         self.device = self.agent.device
         self.no_of_episodes = 500
-        self.max_steps_per_episode = 50
+        # self.max_steps_per_episode = 50
         self.epsilon = 1.0
         self.epsilon_decay = 0.999
         self.epsilon_min = 0.1
@@ -46,9 +46,9 @@ class Train:
             episode_reward = 0
             num_updates = 0
             while (not self.stop):
-                if self.steps % 500 == 0:
+                if self.steps % 100 == 0:
                     self.agent.copy() # copy the weights
-                if self.epsilon > self.epsilon_min:
+                if self.epsilon > self.epsilon_min and self.steps % 20 == 0: # decay the epsilo:
                     self.epsilon *= self.epsilon_decay
                 state = self.env.one_hot_encoder(state) # one hot encode the state
                 random_number = torch.rand(1)
@@ -59,12 +59,15 @@ class Train:
                     action = self.env.action_space.sample() # random action
                 # print(action)
                 next_state, reward, terminated, truncated, info = self.env.step(action) # step the environment
+                if reward > 0:
+                    reward *= 5
                 episode_reward += reward  # Track total reward
                 if terminated: # if the episode is terminated
                     self.replay_buffer.append((state, action, reward, None)) # append the replay buffer
                 else:
                     self.replay_buffer.append((state, action, reward, next_state)) # append the replay buffer
                 if len(self.replay_buffer) < self.batch_size:
+                     
                     if terminated:
                         td_target = torch.tensor(reward, dtype=torch.float32).to(self.device) # if the episode is terminated, td_target is the reward, otherwise it is the max of the next state q_value, but it is on cp, so it is the reward inf
                     else:
@@ -92,7 +95,7 @@ class Train:
 
                 self.agent.optimizer.zero_grad() # zero the gradient
                 self.total_loss.backward() # backward pass
-                torch.nn.utils.clip_grad_norm_(self.agent.parameters(), max_norm=1) # clip the gradient
+                torch.nn.utils.clip_grad_norm_(self.agent.parameters, max_norm=1) # clip the gradient
                 self.agent.optimizer.step() # update the weights
 
                 episode_loss += self.total_loss.item()  # Track loss
@@ -108,6 +111,7 @@ class Train:
             # print(info)
             # Print episode summary
             avg_loss = episode_loss / num_updates if num_updates > 0 else 0
+            
             print(f"Episode {episode}: Average Loss = {avg_loss:.4f}, Total Reward = {episode_reward}")
 
             # Store metrics for plotting
@@ -190,7 +194,7 @@ class Train:
 
 
 env = Env('Taxi-v3', render_mode=None)
-agent = Agent([env.observation_space.n, 64, 64, env.action_space.n])
+agent = Agent([env.observation_space.n, (env.observation_space.n + env.action_space.n)//2, env.action_space.n])
 train = Train(env, agent)
 train.train()
 train.save_metrics(train.no_of_episodes)

@@ -3,7 +3,7 @@ import torch
 
 class Env:
     def __init__(self, env_name, render_mode):
-        self.env = gym.make(env_name, render_mode=render_mode, max_episode_steps=100)
+        self.env = gym.make(env_name, render_mode=render_mode, max_episode_steps=200)
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
 
