@@ -12,6 +12,7 @@
 * Python 3.9.17
 * gymnasium 1.1.1
 
+## Training Feedback
 1. An interesting phenomenon was observed during the training process. The model doesn't do any pickup and dropoff operation in order to prevent high negative rewards. Therefore, in the whole training process, the model seems like to learn a passive strategy about moving until the maximum steps of a episode.
 2. Observing the loss during the training, we can see the performance of the model is going to converge, the loss decreasing from 678 to 0.6. However, based on the reward from -700 to -200, the reward doesn't keep increasing, and it's stable around -200 to -300. Due the decreasing of the loss, it doesn't seem like underfitting. Therefore, we need to consider reshaping the reward setting. Try to increase the reward in the following training.
 3. After doubling the reward of a episode, the similar phenomenon is observed. However, there are some changes observed in the episode lengths graph. There are some episodes finished within or near 100 steps, which means that the model probably needs more exploration to learn. Due to the reward only given at the end of an episode, the model doesn't learn about the environment very efficiently. Therefore, I probably need to update the reward setting again. In my opinion, the reward could be also given when the taxi picks up a passenger successfully. This could help the model learn the goal of the environment, and accelerate the learning process.
